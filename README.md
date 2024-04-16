@@ -6,7 +6,7 @@ RSS feed aggregator written in Go
 - Follow and unfollow RSS feeds that other users have added
 - Fetch all of the latest posts from the RSS feeds they follow
 
-## Leanring goals
+## Learning goals
 - Integrate a Go server with PostgreSQL
 - Database migrations
 - Learn about long-running service workers
