@@ -21,6 +21,9 @@ func main() {
 		Handler: corsMux,
 	}
 
+	mux.HandleFunc("GET /v1/readiness", apiReadiness)
+	mux.HandleFunc("GET /v1/error", apiError)
+
 	fmt.Printf("Serving port : %v \n", serverPort)
 
 	log.Fatal(server.ListenAndServe())
