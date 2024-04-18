@@ -9,6 +9,7 @@
 *.dylib
 
 .env
+blog-aggregator
 # Test binary, built with `go test -c`
 *.test
 
