@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -34,22 +33,12 @@ func (apiCfg *apiConfig) postUser(w http.ResponseWriter, r *http.Request) {
 		Name string `json:"name"`
 	}
 
-	type putUserResponse struct {
-		ID        uuid.UUID `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Name      string    `json:"name"`
-	}
-
 	user := putUserRequest{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&user)
 
 	if err != nil {
-		// Should this be a 500, it could be an issue with the request body?
-		// Can I handle this better?
-		// Should this log on serverside
-		respondWithError(w, 500, "Can not parse request body")
+		respondWithError(w, 400, "Invalid client request body")
 		return
 	}
 
@@ -65,10 +54,23 @@ func (apiCfg *apiConfig) postUser(w http.ResponseWriter, r *http.Request) {
 	createdUser, err := apiCfg.DB.CreateUser(r.Context(), userParams)
 
 	if err != nil {
-		fmt.Println(err)
 		respondWithError(w, 500, "Can not create user in database")
 		return
 	}
 
-	respondWithJSON(w, 201, createdUser)
+	type putUserResponse struct {
+		ID        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Name      string    `json:"name"`
+	}
+
+	response := putUserResponse{
+		ID:        createdUser.ID,
+		CreatedAt: createdUser.CreatedAt,
+		UpdatedAt: createdUser.UpdatedAt,
+		Name:      createdUser.Name,
+	}
+
+	respondWithJSON(w, 201, response)
 }
