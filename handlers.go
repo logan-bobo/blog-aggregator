@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,32 +28,7 @@ func (apiCfg *apiConfig) error(w http.ResponseWriter, r *http.Request) {
 	respondWithError(w, 500, "Internal Server Error")
 }
 
-func(apiCfg *apiConfig) getUser(w http.ResponseWriter, r *http.Request) {
-	var apiKey string
-
-	authHeader := r.Header.Get("Authorization")	
-
-	if authHeader == "" {
-		respondWithError(w, 400, "No Auth header supplied")
-		return
-	}
-
-	splitAuth := strings.Split(authHeader, " ")
-
-	if len(splitAuth) > 0 {
-		apiKey = splitAuth[1]
-	} else {
-		respondWithError(w, 400, "Incorrect Auth header format")
-		return
-	}
-
-	user, err := apiCfg.DB.SelectUserAPIKey(r.Context(), apiKey)
-
-	if err != nil {
-		respondWithError(w, 400, "No user exists for API key")
-		return
-	}
-
+func (apiCfg *apiConfig) getUser(w http.ResponseWriter, r *http.Request, user database.User) {
 	type getUserResponse struct {
 		ID        uuid.UUID `json:"id"`
 		CreatedAt time.Time `json:"created_at"`
@@ -64,7 +38,7 @@ func(apiCfg *apiConfig) getUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := getUserResponse{
-		ID:		   user.ID,
+		ID:        user.ID,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Name:      user.Name,
@@ -75,11 +49,11 @@ func(apiCfg *apiConfig) getUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (apiCfg *apiConfig) postUser(w http.ResponseWriter, r *http.Request) {
-	type putUserRequest struct {
+	type postUserRequest struct {
 		Name string `json:"name"`
 	}
 
-	user := putUserRequest{}
+	user := postUserRequest{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&user)
 
@@ -116,6 +90,59 @@ func (apiCfg *apiConfig) postUser(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: createdUser.CreatedAt,
 		UpdatedAt: createdUser.UpdatedAt,
 		Name:      createdUser.Name,
+	}
+
+	respondWithJSON(w, 201, response)
+}
+
+func (apiCfg *apiConfig) postFeed(w http.ResponseWriter, r *http.Request, user database.User) {
+	type postFeedRequest struct {
+		Name string `json:"name"`
+		URL  string `json:"URL"`
+	}
+
+	feedData := postFeedRequest{}
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&feedData)
+
+	if err != nil {
+		respondWithError(w, 400, "malformed request")
+	}
+
+	currentTime := time.Now()
+
+	feedParams := database.CreateFeedParams{
+		ID:        uuid.New(),
+		UserID:    user.ID,
+		CreatedAt: currentTime,
+		UpdatedAt: currentTime,
+		Name:      feedData.Name,
+		Url:       feedData.URL,
+	}
+
+	feed, err := apiCfg.DB.CreateFeed(r.Context(), feedParams)
+
+	if err != nil {
+		respondWithError(w, 500, "Can not create feed in database")
+		return
+	}
+
+	type postFeedResponse struct {
+		ID        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAT time.Time `json:"updated_at"`
+		Name      string    `json:"name"`
+		Url       string    `json:"url"`
+		UserID    uuid.UUID `json:"user_id"`
+	}
+
+	response := postFeedResponse{
+		ID:        feed.ID,
+		CreatedAt: feed.CreatedAt,
+		UpdatedAT: feed.UpdatedAt,
+		Name:      feed.Name,
+		Url:       feed.Url,
+		UserID:    feed.UserID,
 	}
 
 	respondWithJSON(w, 201, response)
