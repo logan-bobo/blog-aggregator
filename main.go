@@ -43,6 +43,7 @@ func main() {
 	mux.HandleFunc("GET /v1/error", apiCfg.error)
 
 	mux.HandleFunc("POST /v1/users", apiCfg.postUser)
+	mux.HandleFunc("GET /v1/users", apiCfg.getUser)
 
 	fmt.Printf("Serving port : %v \n", serverPort)
 
