@@ -46,6 +46,7 @@ func main() {
 	mux.HandleFunc("GET /v1/users", apiCfg.middlewareAuth(apiCfg.getUser))
 
 	mux.HandleFunc("POST /v1/feeds", apiCfg.middlewareAuth(apiCfg.postFeed))
+	mux.HandleFunc("GET /v1/feeds", apiCfg.getFeeds)
 
 	fmt.Printf("Serving port : %v \n", serverPort)
 

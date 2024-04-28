@@ -130,7 +130,7 @@ func (apiCfg *apiConfig) postFeed(w http.ResponseWriter, r *http.Request, user d
 	type postFeedResponse struct {
 		ID        uuid.UUID `json:"id"`
 		CreatedAt time.Time `json:"created_at"`
-		UpdatedAT time.Time `json:"updated_at"`
+		UpdatedAt time.Time `json:"updated_at"`
 		Name      string    `json:"name"`
 		Url       string    `json:"url"`
 		UserID    uuid.UUID `json:"user_id"`
@@ -139,11 +139,43 @@ func (apiCfg *apiConfig) postFeed(w http.ResponseWriter, r *http.Request, user d
 	response := postFeedResponse{
 		ID:        feed.ID,
 		CreatedAt: feed.CreatedAt,
-		UpdatedAT: feed.UpdatedAt,
+		UpdatedAt: feed.UpdatedAt,
 		Name:      feed.Name,
 		Url:       feed.Url,
 		UserID:    feed.UserID,
 	}
 
 	respondWithJSON(w, 201, response)
+}
+
+func (apiCfg *apiConfig) getFeeds(w http.ResponseWriter, r *http.Request) {
+	feeds, err := apiCfg.DB.SelectAllFeeds(r.Context())
+
+	if err != nil {
+		respondWithError(w, 500, "Can not select feeds")
+	}
+
+	type returnFeed struct {
+		ID        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAT time.Time `json:"updated_at"`
+		Name      string    `json:"name"`
+		Url       string    `json:"url"`
+		UserID    uuid.UUID `json:"user_id"`
+	}
+
+	returnFeeds := []returnFeed{}
+
+	for _, feed := range feeds {
+		returnFeeds = append(returnFeeds, returnFeed{
+			ID:        feed.ID,
+			CreatedAt: feed.CreatedAt,
+			UpdatedAT: feed.UpdatedAt,
+			Name:      feed.Name,
+			Url:       feed.Url,
+			UserID:    feed.UserID,
+		})
+	}
+
+	respondWithJSON(w, 200, returnFeeds)
 }

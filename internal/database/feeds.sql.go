@@ -48,12 +48,12 @@ func (q *Queries) CreateFeed(ctx context.Context, arg CreateFeedParams) (Feed, e
 	return i, err
 }
 
-const selectAll = `-- name: SelectAll :many
+const selectAllFeeds = `-- name: SelectAllFeeds :many
 SELECT id, user_id, created_at, updated_at, name, url FROM feeds
 `
 
-func (q *Queries) SelectAll(ctx context.Context) ([]Feed, error) {
-	rows, err := q.db.QueryContext(ctx, selectAll)
+func (q *Queries) SelectAllFeeds(ctx context.Context) ([]Feed, error) {
+	rows, err := q.db.QueryContext(ctx, selectAllFeeds)
 	if err != nil {
 		return nil, err
 	}
