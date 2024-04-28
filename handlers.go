@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,6 +27,51 @@ func (apiCfg *apiConfig) readiness(w http.ResponseWriter, r *http.Request) {
 
 func (apiCfg *apiConfig) error(w http.ResponseWriter, r *http.Request) {
 	respondWithError(w, 500, "Internal Server Error")
+}
+
+func(apiCfg *apiConfig) getUser(w http.ResponseWriter, r *http.Request) {
+	var apiKey string
+
+	authHeader := r.Header.Get("Authorization")	
+
+	if authHeader == "" {
+		respondWithError(w, 400, "No Auth header supplied")
+		return
+	}
+
+	splitAuth := strings.Split(authHeader, " ")
+
+	if len(splitAuth) > 0 {
+		apiKey = splitAuth[1]
+	} else {
+		respondWithError(w, 400, "Incorrect Auth header format")
+		return
+	}
+
+	user, err := apiCfg.DB.SelectUserAPIKey(r.Context(), apiKey)
+
+	if err != nil {
+		respondWithError(w, 400, "No user exists for API key")
+		return
+	}
+
+	type getUserResponse struct {
+		ID        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Name      string    `json:"name"`
+		ApiKey    string    `json:"api_key"`
+	}
+
+	response := getUserResponse{
+		ID:		   user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Name:      user.Name,
+		ApiKey:    user.ApiKey,
+	}
+
+	respondWithJSON(w, 200, response)
 }
 
 func (apiCfg *apiConfig) postUser(w http.ResponseWriter, r *http.Request) {
