@@ -50,7 +50,6 @@ func main() {
 
 	mux.HandleFunc("POST /v1/feed_follows", apiCfg.middlewareAuth(apiCfg.postFeedFollow))
 
-
 	fmt.Printf("Serving port : %v \n", serverPort)
 
 	log.Fatal(server.ListenAndServe())

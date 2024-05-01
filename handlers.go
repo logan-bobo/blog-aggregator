@@ -197,9 +197,9 @@ func (apiCfg *apiConfig) postFeedFollow(w http.ResponseWriter, r *http.Request, 
 	currentTime := time.Now()
 
 	feedFollowParams := database.CreateFeedFollowParams{
-		ID: uuid.New(),
-		UserID: user.ID,
-		FeedID: feedFollowData.FeedId,
+		ID:        uuid.New(),
+		UserID:    user.ID,
+		FeedID:    feedFollowData.FeedId,
 		CreatedAt: currentTime,
 		UpdatedAt: currentTime,
 	}
@@ -207,26 +207,24 @@ func (apiCfg *apiConfig) postFeedFollow(w http.ResponseWriter, r *http.Request, 
 	feedFollow, err := apiCfg.DB.CreateFeedFollow(r.Context(), feedFollowParams)
 
 	if err != nil {
-		respondWithError(w, 500, "Can not create feed follow in database")	
+		respondWithError(w, 500, "Can not create feed follow in database")
 	}
 
 	type returnFeedFollow struct {
-		ID uuid.UUID `json:"id"`
-		FeedID uuid.UUID `json:"feed_id"`
-		UserID uuid.UUID `json:"user_id"`
+		ID        uuid.UUID `json:"id"`
+		FeedID    uuid.UUID `json:"feed_id"`
+		UserID    uuid.UUID `json:"user_id"`
 		CreatedAt time.Time `json:"created_at"`
 		UpdatedAt time.Time `json:"updated_at"`
 	}
 
 	response := returnFeedFollow{
-		ID: feedFollow.ID,
-		FeedID: feedFollow.FeedID,
-		UserID: feedFollow.UserID,
+		ID:        feedFollow.ID,
+		FeedID:    feedFollow.FeedID,
+		UserID:    feedFollow.UserID,
 		CreatedAt: feedFollow.CreatedAt,
 		UpdatedAt: feedFollow.UpdatedAt,
 	}
 
 	respondWithJSON(w, 201, response)
 }
-
-
