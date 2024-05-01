@@ -179,3 +179,54 @@ func (apiCfg *apiConfig) getFeeds(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, 200, returnFeeds)
 }
+
+func (apiCfg *apiConfig) postFeedFollow(w http.ResponseWriter, r *http.Request, user database.User) {
+	type postFeedFollow struct {
+		FeedId uuid.UUID `json:"feed_id"`
+	}
+
+	feedFollowData := postFeedFollow{}
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&feedFollowData)
+
+	if err != nil {
+		respondWithError(w, 400, "Malformed request")
+		return
+	}
+
+	currentTime := time.Now()
+
+	feedFollowParams := database.CreateFeedFollowParams{
+		ID: uuid.New(),
+		UserID: user.ID,
+		FeedID: feedFollowData.FeedId,
+		CreatedAt: currentTime,
+		UpdatedAt: currentTime,
+	}
+
+	feedFollow, err := apiCfg.DB.CreateFeedFollow(r.Context(), feedFollowParams)
+
+	if err != nil {
+		respondWithError(w, 500, "Can not create feed follow in database")	
+	}
+
+	type returnFeedFollow struct {
+		ID uuid.UUID `json:"id"`
+		FeedID uuid.UUID `json:"feed_id"`
+		UserID uuid.UUID `json:"user_id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+	}
+
+	response := returnFeedFollow{
+		ID: feedFollow.ID,
+		FeedID: feedFollow.FeedID,
+		UserID: feedFollow.UserID,
+		CreatedAt: feedFollow.CreatedAt,
+		UpdatedAt: feedFollow.UpdatedAt,
+	}
+
+	respondWithJSON(w, 201, response)
+}
+
+
