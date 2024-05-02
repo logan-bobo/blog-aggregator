@@ -228,3 +228,29 @@ func (apiCfg *apiConfig) postFeedFollow(w http.ResponseWriter, r *http.Request, 
 
 	respondWithJSON(w, 201, response)
 }
+
+func (apiCfg *apiConfig) deleteFeedFollow(w http.ResponseWriter, r *http.Request, user database.User) {
+	feedIDRaw := r.PathValue("feedFollowID")
+
+	feedID, err := uuid.Parse(feedIDRaw)
+	
+	if err != nil {
+		respondWithError(w, 400, "Malformed UUID in path")
+		return
+	}
+
+	deleteParams := database.DeleteFeedFollowParams{
+		ID: feedID,
+		UserID: user.ID,
+	}
+
+	err = apiCfg.DB.DeleteFeedFollow(r.Context(), deleteParams)
+
+	if err != nil {
+		// Improve error handeling here as it could be an issue with the request
+		respondWithError(w, 500, "Could not remove feed from database")
+		return
+	}
+
+	w.WriteHeader(200)
+}
