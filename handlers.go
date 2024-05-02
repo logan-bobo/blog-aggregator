@@ -254,3 +254,35 @@ func (apiCfg *apiConfig) deleteFeedFollow(w http.ResponseWriter, r *http.Request
 
 	w.WriteHeader(200)
 }
+
+func (apiCfg *apiConfig) getFeedFollows(w http.ResponseWriter, r *http.Request, user database.User) {
+	feedFollows, err := apiCfg.DB.GetFeedFollows(r.Context(), user.ID)
+
+	if err != nil {
+		respondWithError(w, 500, "Error fetching feed follows")
+		return
+	}
+
+	type returnFeedFollow struct {
+		ID        uuid.UUID `json:"id"`
+		FeedID    uuid.UUID `json:"feed_id"`
+		UserID    uuid.UUID `json:"user_id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+	}
+
+	returnFollows := []returnFeedFollow{}
+
+	for _, follow := range feedFollows {
+		follow := returnFeedFollow{
+			ID: follow.ID,
+			FeedID: follow.FeedID,
+			UserID: follow.UserID,
+			CreatedAt: follow.CreatedAt,
+			UpdatedAt: follow.UpdatedAt,
+		}
+		returnFollows = append(returnFollows, follow)
+	}
+
+	respondWithJSON(w, 200, returnFollows)
+}
