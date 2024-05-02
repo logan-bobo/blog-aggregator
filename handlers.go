@@ -127,7 +127,29 @@ func (apiCfg *apiConfig) postFeed(w http.ResponseWriter, r *http.Request, user d
 		return
 	}
 
-	type postFeedResponse struct {
+	feedFollowParams := database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		UserID:    user.ID,
+		FeedID:    feed.ID,
+		CreatedAt: currentTime,
+		UpdatedAt: currentTime,
+	}
+
+	feedFollow, err := apiCfg.DB.CreateFeedFollow(r.Context(), feedFollowParams)
+
+	if err != nil {
+		respondWithError(w, 500, "Can not create follow for this feed")
+	}
+
+	type feedFollowResponse struct {
+		ID        uuid.UUID `json:"id"`
+		FeedID    uuid.UUID `json:"feed_id"`
+		UserID    uuid.UUID `json:"user_id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+	}
+
+	type feedResponse struct {
 		ID        uuid.UUID `json:"id"`
 		CreatedAt time.Time `json:"created_at"`
 		UpdatedAt time.Time `json:"updated_at"`
@@ -136,13 +158,27 @@ func (apiCfg *apiConfig) postFeed(w http.ResponseWriter, r *http.Request, user d
 		UserID    uuid.UUID `json:"user_id"`
 	}
 
+	type postFeedResponse struct {
+		Feed       feedResponse       `json:"feed"`
+		FeedFollow feedFollowResponse `json:"feed_follow"`
+	}
+
 	response := postFeedResponse{
-		ID:        feed.ID,
-		CreatedAt: feed.CreatedAt,
-		UpdatedAt: feed.UpdatedAt,
-		Name:      feed.Name,
-		Url:       feed.Url,
-		UserID:    feed.UserID,
+		Feed: feedResponse{
+			ID:        feed.ID,
+			CreatedAt: feed.CreatedAt,
+			UpdatedAt: feed.UpdatedAt,
+			Name:      feed.Name,
+			Url:       feed.Url,
+			UserID:    feed.UserID,
+		},
+		FeedFollow: feedFollowResponse{
+			ID:        feedFollow.ID,
+			FeedID:    feedFollow.FeedID,
+			UserID:    feedFollow.UserID,
+			CreatedAt: feedFollow.CreatedAt,
+			UpdatedAt: feedFollow.UpdatedAt,
+		},
 	}
 
 	respondWithJSON(w, 201, response)
@@ -233,14 +269,14 @@ func (apiCfg *apiConfig) deleteFeedFollow(w http.ResponseWriter, r *http.Request
 	feedIDRaw := r.PathValue("feedFollowID")
 
 	feedID, err := uuid.Parse(feedIDRaw)
-	
+
 	if err != nil {
 		respondWithError(w, 400, "Malformed UUID in path")
 		return
 	}
 
 	deleteParams := database.DeleteFeedFollowParams{
-		ID: feedID,
+		ID:     feedID,
 		UserID: user.ID,
 	}
 
@@ -275,9 +311,9 @@ func (apiCfg *apiConfig) getFeedFollows(w http.ResponseWriter, r *http.Request, 
 
 	for _, follow := range feedFollows {
 		follow := returnFeedFollow{
-			ID: follow.ID,
-			FeedID: follow.FeedID,
-			UserID: follow.UserID,
+			ID:        follow.ID,
+			FeedID:    follow.FeedID,
+			UserID:    follow.UserID,
 			CreatedAt: follow.CreatedAt,
 			UpdatedAt: follow.UpdatedAt,
 		}
