@@ -7,6 +7,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,7 +16,7 @@ import (
 const createFeed = `-- name: CreateFeed :one
 INSERT INTO feeds (id, user_id, created_at, updated_at, name, url)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, user_id, created_at, updated_at, name, url
+RETURNING id, user_id, created_at, updated_at, name, url, last_fetched_at
 `
 
 type CreateFeedParams struct {
@@ -44,12 +45,69 @@ func (q *Queries) CreateFeed(ctx context.Context, arg CreateFeedParams) (Feed, e
 		&i.UpdatedAt,
 		&i.Name,
 		&i.Url,
+		&i.LastFetchedAt,
 	)
 	return i, err
 }
 
+const getFeedsToFetch = `-- name: GetFeedsToFetch :many
+SELECT id, user_id, created_at, updated_at, name, url, last_fetched_at 
+FROM feeds
+ORDER BY last_fetched_at DESC NULLS FIRST
+LIMIT $1
+`
+
+func (q *Queries) GetFeedsToFetch(ctx context.Context, limit int32) ([]Feed, error) {
+	rows, err := q.db.QueryContext(ctx, getFeedsToFetch, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Feed
+	for rows.Next() {
+		var i Feed
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Name,
+			&i.Url,
+			&i.LastFetchedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markFeedAsFetched = `-- name: MarkFeedAsFetched :exec
+UPDATE feeds
+SET last_fetched_at = $1,
+    updated_at = $2
+WHERE id = $3
+`
+
+type MarkFeedAsFetchedParams struct {
+	LastFetchedAt sql.NullTime
+	UpdatedAt     time.Time
+	ID            uuid.UUID
+}
+
+func (q *Queries) MarkFeedAsFetched(ctx context.Context, arg MarkFeedAsFetchedParams) error {
+	_, err := q.db.ExecContext(ctx, markFeedAsFetched, arg.LastFetchedAt, arg.UpdatedAt, arg.ID)
+	return err
+}
+
 const selectAllFeeds = `-- name: SelectAllFeeds :many
-SELECT id, user_id, created_at, updated_at, name, url FROM feeds
+SELECT id, user_id, created_at, updated_at, name, url, last_fetched_at FROM feeds
 `
 
 func (q *Queries) SelectAllFeeds(ctx context.Context) ([]Feed, error) {
@@ -68,6 +126,7 @@ func (q *Queries) SelectAllFeeds(ctx context.Context) ([]Feed, error) {
 			&i.UpdatedAt,
 			&i.Name,
 			&i.Url,
+			&i.LastFetchedAt,
 		); err != nil {
 			return nil, err
 		}
