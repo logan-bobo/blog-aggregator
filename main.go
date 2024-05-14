@@ -8,10 +8,14 @@ import (
 	"os"
 
 	"github.com/logan-bobo/blog-aggregator/internal/database"
+	"github.com/logan-bobo/blog-aggregator/internal/scraper"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
+
+// TODO: Move this to being an env var make const for now
+const numberOfFeedsToUpdate int32 = 300
 
 func main() {
 	godotenv.Load()
@@ -53,6 +57,8 @@ func main() {
 	mux.HandleFunc("GET /v1/feed_follows", apiCfg.middlewareAuth(apiCfg.getFeedFollows))
 
 	fmt.Printf("Serving port : %v \n", serverPort)
+
+	go scraper.Worker(numberOfFeedsToUpdate, dbQueries)
 
 	log.Fatal(server.ListenAndServe())
 }
