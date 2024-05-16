@@ -54,3 +54,70 @@ func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (Post, e
 	)
 	return i, err
 }
+
+const getPost = `-- name: GetPost :many
+SELECT posts.id, posts.created_at, posts.updated_at, title, url, description, published_at, posts.feed_id, feed_follows.id, user_id, feed_follows.feed_id, feed_follows.created_at, feed_follows.updated_at 
+FROM posts
+INNER JOIN feed_follows
+    ON posts.feed_id = feed_follows.feed_id
+WHERE feed_follows.user_id = $1
+LIMIT $2
+`
+
+type GetPostParams struct {
+	UserID uuid.UUID
+	Limit  int32
+}
+
+type GetPostRow struct {
+	ID          uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Title       sql.NullString
+	Url         sql.NullString
+	Description sql.NullString
+	PublishedAt sql.NullTime
+	FeedID      uuid.NullUUID
+	ID_2        uuid.UUID
+	UserID      uuid.UUID
+	FeedID_2    uuid.UUID
+	CreatedAt_2 time.Time
+	UpdatedAt_2 time.Time
+}
+
+func (q *Queries) GetPost(ctx context.Context, arg GetPostParams) ([]GetPostRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPost, arg.UserID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPostRow
+	for rows.Next() {
+		var i GetPostRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Title,
+			&i.Url,
+			&i.Description,
+			&i.PublishedAt,
+			&i.FeedID,
+			&i.ID_2,
+			&i.UserID,
+			&i.FeedID_2,
+			&i.CreatedAt_2,
+			&i.UpdatedAt_2,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
