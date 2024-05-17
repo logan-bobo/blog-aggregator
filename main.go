@@ -19,9 +19,9 @@ const numberOfFeedsToUpdate int32 = 300
 
 func main() {
 	godotenv.Load()
+	
 	serverPort := os.Getenv("PORT")
 	dbURL := os.Getenv("PG_CONN")
-	fmt.Println(dbURL)
 
 	db, err := sql.Open("postgres", dbURL)
 
@@ -56,7 +56,9 @@ func main() {
 	mux.HandleFunc("DELETE /v1/feed_follows/{feedFollowID}", apiCfg.middlewareAuth(apiCfg.deleteFeedFollow))
 	mux.HandleFunc("GET /v1/feed_follows", apiCfg.middlewareAuth(apiCfg.getFeedFollows))
 
-	fmt.Printf("Serving port : %v \n", serverPort)
+	mux.HandleFunc("GET /v1/posts", apiCfg.middlewareAuth(apiCfg.getPosts))
+
+	log.Printf("Serving port : %v \n", serverPort)
 
 	go scraper.Worker(numberOfFeedsToUpdate, dbQueries)
 
