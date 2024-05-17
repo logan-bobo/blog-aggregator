@@ -15,7 +15,7 @@ import (
 )
 
 // TODO: Move this to being an env var make const for now
-const numberOfFeedsToUpdate int32 = 300
+const numberOfFeedsToUpdate int32 = 10
 
 func main() {
 	godotenv.Load()

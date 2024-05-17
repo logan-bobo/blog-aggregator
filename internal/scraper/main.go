@@ -2,14 +2,15 @@ package scraper
 
 import (
 	"context"
+	"database/sql"
 	"encoding/xml"
-	"fmt"
 	"log"
 	"net/http"
 	"net/url"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/logan-bobo/blog-aggregator/internal/database"
 )
 
@@ -84,11 +85,10 @@ func Worker(numberOfFeedsToPull int32, db *database.Queries) error {
 	for {
 		_ = <-ticker.C
 
-		log.Println("Starting scraper")
+		log.Println("starting scraper")
 
 		// TODO: Learn about context
 		feeds, err := db.GetFeedsToFetch(context.TODO(), numberOfFeedsToPull)
-		log.Println(feeds)
 
 		if err != nil {
 			log.Println(err)
@@ -101,16 +101,53 @@ func Worker(numberOfFeedsToPull int32, db *database.Queries) error {
 		for _, feed := range feeds {
 			wg.Add(1)
 
-			log.Printf("Pulling Feed: %s", feed.Name)
+			log.Printf("pulling feed: %s", feed.Name)
 
 			go Scrape(feed.Url, &wg, messages)
 
 			msg := <-messages
-			fmt.Println(msg.Channel.Title)
+			log.Printf("processing feed: %s", msg.Channel.Title)
+
+			for _, post := range msg.Channel.Item {
+				now := time.Now()
+
+				timeFormat := "Mon, 02 Jan 2006 15:04:05 -0700"
+				parsedTime, err := time.Parse(timeFormat, post.PubDate)
+
+				if err != nil {
+					log.Printf("can not parse time %s with %s", post.PubDate, err)
+				}
+
+				outputLayout := "2006-01-02 15:04:05.000000"
+				formattedTime := parsedTime.Format(outputLayout)
+				formattedparsedTime, err := time.Parse(outputLayout, formattedTime)
+
+				if err != nil {
+					log.Printf("can not parse time to correct format %s, with %s", formattedTime, err)
+				}
+
+				params := database.CreatePostParams{
+					ID:          uuid.New(),
+					CreatedAt:   now,
+					UpdatedAt:   now,
+					Title:       sql.NullString{String: post.Title, Valid: true},
+					Url:         sql.NullString{String: post.Link, Valid: true},
+					Description: sql.NullString{String: post.Description, Valid: true},
+					PublishedAt: sql.NullTime{Time: formattedparsedTime, Valid: true},
+					FeedID:      uuid.NullUUID{UUID: feed.ID, Valid: true},
+				}
+
+				_, err = db.CreatePost(context.TODO(), params)
+
+				// we dont really care if the entry already exists so skip logging that it cant be created
+				if err != nil && err.Error() != "pq: duplicate key value violates unique constraint \"unique_url\"" {
+					log.Printf("can not create post %s in database with error %s", post.Title, err)
+				}
+			}
+
+			wg.Wait()
+
+			log.Println("scrape finished")
 		}
-
-		wg.Wait()
-
-		log.Println("Scrape finished")
 	}
 }
