@@ -2,7 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,7 +28,7 @@ func (apiCfg *apiConfig) readiness(w http.ResponseWriter, r *http.Request) {
 }
 
 func (apiCfg *apiConfig) error(w http.ResponseWriter, r *http.Request) {
-	respondWithError(w, 500, "Internal Server Error")
+	respondWithError(w, 500, "internal Server Error")
 }
 
 func (apiCfg *apiConfig) getUser(w http.ResponseWriter, r *http.Request, user database.User) {
@@ -58,7 +61,7 @@ func (apiCfg *apiConfig) postUser(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&user)
 
 	if err != nil {
-		respondWithError(w, 400, "Invalid client request body")
+		respondWithError(w, 400, "invalid client request body")
 		return
 	}
 
@@ -74,7 +77,7 @@ func (apiCfg *apiConfig) postUser(w http.ResponseWriter, r *http.Request) {
 	createdUser, err := apiCfg.DB.CreateUser(r.Context(), userParams)
 
 	if err != nil {
-		respondWithError(w, 500, "Can not create user in database")
+		respondWithError(w, 500, "can not create user in database")
 		return
 	}
 
@@ -123,7 +126,7 @@ func (apiCfg *apiConfig) postFeed(w http.ResponseWriter, r *http.Request, user d
 	feed, err := apiCfg.DB.CreateFeed(r.Context(), feedParams)
 
 	if err != nil {
-		respondWithError(w, 500, "Can not create feed in database")
+		respondWithError(w, 500, "can not create feed in database")
 		return
 	}
 
@@ -138,7 +141,7 @@ func (apiCfg *apiConfig) postFeed(w http.ResponseWriter, r *http.Request, user d
 	feedFollow, err := apiCfg.DB.CreateFeedFollow(r.Context(), feedFollowParams)
 
 	if err != nil {
-		respondWithError(w, 500, "Can not create follow for this feed")
+		respondWithError(w, 500, "can not create follow for this feed")
 	}
 
 	type feedFollowResponse struct {
@@ -188,7 +191,7 @@ func (apiCfg *apiConfig) getFeeds(w http.ResponseWriter, r *http.Request) {
 	feeds, err := apiCfg.DB.SelectAllFeeds(r.Context())
 
 	if err != nil {
-		respondWithError(w, 500, "Can not select feeds")
+		respondWithError(w, 500, "can not select feeds")
 	}
 
 	type returnFeed struct {
@@ -226,7 +229,7 @@ func (apiCfg *apiConfig) postFeedFollow(w http.ResponseWriter, r *http.Request, 
 	err := decoder.Decode(&feedFollowData)
 
 	if err != nil {
-		respondWithError(w, 400, "Malformed request")
+		respondWithError(w, 400, "malformed request")
 		return
 	}
 
@@ -243,7 +246,7 @@ func (apiCfg *apiConfig) postFeedFollow(w http.ResponseWriter, r *http.Request, 
 	feedFollow, err := apiCfg.DB.CreateFeedFollow(r.Context(), feedFollowParams)
 
 	if err != nil {
-		respondWithError(w, 500, "Can not create feed follow in database")
+		respondWithError(w, 500, "can not create feed follow in database")
 	}
 
 	type returnFeedFollow struct {
@@ -271,7 +274,7 @@ func (apiCfg *apiConfig) deleteFeedFollow(w http.ResponseWriter, r *http.Request
 	feedID, err := uuid.Parse(feedIDRaw)
 
 	if err != nil {
-		respondWithError(w, 400, "Malformed UUID in path")
+		respondWithError(w, 400, "malformed UUID in path")
 		return
 	}
 
@@ -284,7 +287,7 @@ func (apiCfg *apiConfig) deleteFeedFollow(w http.ResponseWriter, r *http.Request
 
 	if err != nil {
 		// Improve error handeling here as it could be an issue with the request
-		respondWithError(w, 500, "Could not remove feed from database")
+		respondWithError(w, 500, "could not remove feed from database")
 		return
 	}
 
@@ -295,7 +298,7 @@ func (apiCfg *apiConfig) getFeedFollows(w http.ResponseWriter, r *http.Request, 
 	feedFollows, err := apiCfg.DB.GetFeedFollows(r.Context(), user.ID)
 
 	if err != nil {
-		respondWithError(w, 500, "Error fetching feed follows")
+		respondWithError(w, 500, "error fetching feed follows")
 		return
 	}
 
@@ -321,4 +324,57 @@ func (apiCfg *apiConfig) getFeedFollows(w http.ResponseWriter, r *http.Request, 
 	}
 
 	respondWithJSON(w, 200, returnFollows)
+}
+
+func (apiCfg *apiConfig) getPosts(w http.ResponseWriter, r *http.Request, user database.User) {
+	var postLimit int
+	var err error
+	
+	limitParam := r.URL.Query().Get("limit")
+	postLimit = 10
+	
+	if limitParam != "" {
+		postLimit, err = strconv.Atoi(limitParam)
+		
+		if err != nil {
+			respondWithError(w, 400, "invalid input to limit query param")
+			return
+		}
+	}
+
+	params := database.GetPostParams{
+		UserID: user.ID,
+		Limit: int32(postLimit),
+	}
+
+	log.Printf("grabbing %d posts for %s user", postLimit, user.Name)
+
+	posts, err := apiCfg.DB.GetPost(r.Context(), params)
+
+	if err != nil {
+		respondWithError(w, 500, "can not get posts from database")
+		return
+	}
+
+	type returnPost struct {
+		Title string `json:"id"`
+		Url string `json:"url"`
+		Description string `json:"description"`
+		PublishedAt string `json:"published_at"`
+	}
+
+	returnPosts := []returnPost{}
+
+	for _, post := range posts {
+		transformPost := returnPost{
+			Title: post.Title.String,
+			Url: post.Url.String,
+			Description: post.Description.String,
+			PublishedAt: post.PublishedAt.Time.String(),
+		}
+
+		returnPosts = append(returnPosts, transformPost)
+	}
+
+	respondWithJSON(w, 200, returnPosts)
 }
